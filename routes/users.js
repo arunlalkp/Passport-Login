@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
+
+// User Model
+const User = require('../models/User');
 
 // Get Login
 router.get('/login', (req, res) => {
@@ -25,10 +29,7 @@ router.post('/register', (req, res)=> {
     if (password !== password2) {
         errors.push( {msg: 'Passwords do not match'} )
     }
-    console.log({ name, email, password, password2});
-    console.log('password = ' + req.body.password);
-    console.log('name = ' + req.body.name);
-    
+   
     // check passwords length is not less than 6 charecters
     if (password.length < 6) {
         errors.push( {msg: 'Password should be atleast 6 charecters'} )
@@ -44,7 +45,43 @@ router.post('/register', (req, res)=> {
         })
     }
     else {
-        res.send('Pass!')
+      // validation Pass
+      User.findOne({ email: email})
+        .then(user => {
+            if (user) {
+                 // if user exists
+                errors.push({msg: 'Email is already in use'})
+                res.render('register', {
+                    errors,
+                    name,
+                    email,
+                    password,
+                    password2
+                });
+            } 
+            else {
+                const newUser = new User({
+                    name,
+                    email,
+                    password
+                });
+                
+                // hash password
+                bcrypt.genSalt(10, (err, salt) => {
+                    bcrypt.hash(newUser.password, salt, (err, hash) => {
+                        if (err) throw err;
+                        // set password to hash
+                        newUser.password = hash;
+                        //save user
+                        newUser.save()
+                            .then((user) => res.redirect('/users/login'))
+                            .catch((err) => console.log(err));
+                    })
+                })
+                
+            }
+        });
+
     }
 })
 
